@@ -10,6 +10,7 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'es', name: 'Spanish', nativeName: 'Español', direction: 'ltr' },
   { code: 'fr', name: 'French', nativeName: 'Français', direction: 'ltr' },
   { code: 'de', name: 'German', nativeName: 'Deutsch', direction: 'ltr' },
+  { code: 'pl', name: 'Polish', nativeName: 'Polski', direction: 'ltr' },
   { code: 'pt', name: 'Portuguese', nativeName: 'Português', direction: 'ltr' },
   { code: 'zh', name: 'Chinese', nativeName: '中文', direction: 'ltr' },
   { code: 'ja', name: 'Japanese', nativeName: '日本語', direction: 'ltr' },

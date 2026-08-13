@@ -19,6 +19,7 @@ _KEY_REQUIRED: dict[str, str] = {
     "speechmatics": "SPEECHMATICS_API_KEY",
     "gladia": "GLADIA_API_KEY",
     "pyannote": "PYANNOTE_API_KEY",
+    "elevenlabs": "ELEVENLABS_API_KEY",
 }
 
 ASR_PROVIDER_CATALOG: dict = {
@@ -196,6 +197,39 @@ ASR_PROVIDER_CATALOG: dict = {
                 "price_per_min_batch": 0.0045,
                 "languages": 99,
                 "supports_diarization": True,
+            },
+        ],
+    },
+    "elevenlabs": {
+        "id": "elevenlabs",
+        "display_name": "ElevenLabs",
+        "requires_api_key": True,
+        "requires_region": False,
+        "supports_custom_url": True,
+        "supports_diarization": True,
+        "supports_vocabulary": False,
+        "supports_translation": False,
+        "description": "Scribe speech-to-text with built-in diarization (up to 32 speakers)",
+        "status": "experimental",
+        "status_note": "This provider has not been fully tested with real API keys. Results may vary.",
+        "diarization_quality": "Built-in — word-level speaker labels, up to 32 speakers",
+        "models": [
+            {
+                "id": "scribe_v2",
+                "display_name": "Scribe v2",
+                "description": "Current Scribe model ($0.22/h audio), 10 h file limit",
+                "price_per_min_batch": 0.0037,
+                "is_default": True,
+                "supports_diarization": True,
+                "supports_translation": False,
+            },
+            {
+                "id": "scribe_v1",
+                "display_name": "Scribe v1 (deprecated)",
+                "description": "Previous Scribe model, kept for compatibility",
+                "price_per_min_batch": 0.0037,
+                "supports_diarization": True,
+                "supports_translation": False,
             },
         ],
     },
@@ -654,6 +688,14 @@ class ASRProviderFactory:
             return PyAnnoteProvider(
                 os.getenv("PYANNOTE_API_KEY", ""), os.getenv("PYANNOTE_MODEL", "parakeet")
             )
+        if provider == "elevenlabs":
+            from .elevenlabs_provider import ElevenLabsProvider
+
+            return ElevenLabsProvider(
+                os.getenv("ELEVENLABS_API_KEY", ""),
+                os.getenv("ELEVENLABS_MODEL", "scribe_v2"),
+                base_url=os.getenv("ELEVENLABS_BASE_URL") or None,
+            )
         logger.warning("Unknown ASR provider '%s', falling back to local", provider)
         return LocalASRProvider()
 
@@ -713,6 +755,10 @@ class ASRProviderFactory:
             from .gladia_provider import GladiaProvider
 
             return GladiaProvider(api_key or "", model or "standard")
+        if provider == "elevenlabs":
+            from .elevenlabs_provider import ElevenLabsProvider
+
+            return ElevenLabsProvider(api_key or "", model or "scribe_v2", base_url=base_url)
         if provider == "pyannote":
             from .pyannote_provider import PyAnnoteProvider
 

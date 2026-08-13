@@ -20,6 +20,7 @@ ASR_PROVIDER_MODULES = [
     "assemblyai_provider",
     "openai_provider",
     "gladia_provider",
+    "elevenlabs_provider",
     "speechmatics_provider",
     "aws_provider",
     "google_provider",

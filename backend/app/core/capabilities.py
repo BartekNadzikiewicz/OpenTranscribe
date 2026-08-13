@@ -174,8 +174,31 @@ CAPABILITY_AUDIENCE: dict[str, str] = {
 CapabilityResolver = Callable[[Request | None], dict[str, bool]]
 
 
+def _parse_capability_overrides() -> dict[str, bool]:
+    """Self-hosted overrides from CAPABILITY_OVERRIDES (e.g. "chat.rag=false").
+
+    Comma-separated key=true/false pairs. Only keys already declared in
+    COMMUNITY_CAPABILITIES are honored — an unknown key is logged and
+    skipped so a typo cannot silently disable (or enable) anything.
+    """
+    import os
+
+    raw = os.getenv("CAPABILITY_OVERRIDES", "")
+    overrides: dict[str, bool] = {}
+    for pair in filter(None, (p.strip() for p in raw.split(","))):
+        key, sep, value = pair.partition("=")
+        key = key.strip()
+        if not sep or key not in COMMUNITY_CAPABILITIES:
+            logger.warning("CAPABILITY_OVERRIDES: ignoring unknown entry %r", pair)
+            continue
+        overrides[key] = value.strip().lower() in ("true", "1", "on", "yes")
+    return overrides
+
+
 def _community_resolver(_request: Request | None) -> dict[str, bool]:
-    return dict(COMMUNITY_CAPABILITIES)
+    caps = dict(COMMUNITY_CAPABILITIES)
+    caps.update(_parse_capability_overrides())
+    return caps
 
 
 _resolver: CapabilityResolver = _community_resolver

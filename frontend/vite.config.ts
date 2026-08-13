@@ -38,6 +38,11 @@ export default defineConfig(({ mode }) => {
   // builds are completely unaffected. Emits dist/stats.html after the build.
   const analyze = process.env.ANALYZE === 'true' || mode === 'analyze';
 
+  // Dev-proxy target: the Docker-internal hostname by default, overridable for
+  // running the dev server outside Docker (VITE_BACKEND_URL=http://localhost:5174).
+  const backendTarget = env.VITE_BACKEND_URL || 'http://backend:8080';
+  const backendWsTarget = backendTarget.replace(/^http/, 'ws');
+
   return {
     plugins: [
       sveltekit(),
@@ -60,11 +65,11 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/health': {
-          target: 'http://backend:8080',
+          target: backendTarget,
           changeOrigin: true,
         },
         '/api': {
-          target: 'http://backend:8080',
+          target: backendTarget,
           changeOrigin: true,
           rewrite: (path) => path,
           secure: false,
@@ -86,7 +91,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         '/api/ws': {
-          target: 'ws://backend:8080',
+          target: backendWsTarget,
           ws: true,
           changeOrigin: true,
           rewrite: (path) => path,
@@ -128,7 +133,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/s3/, ''),
           headers: {
-            Host: 'minio:9000',
+            // Presigned-URL signatures cover the Host header, so it must match
+            // the endpoint the backend signed against (MINIO_HOST:MINIO_PORT).
+            Host: new URL(env.VITE_MINIO_URL || 'http://minio:9000').host,
           },
         },
       },
