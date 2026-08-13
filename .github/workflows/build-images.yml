@@ -1,0 +1,56 @@
+# Buduje obrazy produkcyjne (wariant lite, cloud-only ASR) i publikuje je
+# w GitHub Container Registry (ghcr.io) jako paczki forka.
+# Po ustawieniu paczek jako PUBLICZNE serwer pobiera je anonimowo.
+name: build-images
+
+on:
+  push:
+    branches: [nasze-dostosowania]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend-lite
+            context: backend
+            dockerfile: backend/Dockerfile.lite
+          - name: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile.prod
+          - name: docs
+            context: docs-site
+            dockerfile: docs-site/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zmienne (wersja z pliku VERSION, wlasciciel malymi literami)
+        id: vars
+        run: |
+          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.vars.outputs.owner }}/opentranscribe-${{ matrix.name }}:latest
+            ghcr.io/${{ steps.vars.outputs.owner }}/opentranscribe-${{ matrix.name }}:${{ github.sha }}
+          build-args: |
+            DOCS_BASE_URL=/docs/
+            OT_VERSION=${{ steps.vars.outputs.version }}

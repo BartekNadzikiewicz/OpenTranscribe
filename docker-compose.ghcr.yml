@@ -1,0 +1,27 @@
+# Overlay: obrazy z ghcr.io (fork) zamiast Docker Huba + domkniecie serwisow,
+# ktorych nie pokrywa docker-compose.lite.yml (redaction/embedding/flower).
+# Uzycie na serwerze (razem ze start-serwer.sh):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#     -f docker-compose.lite.yml -f docker-compose.ghcr.yml up -d
+# Obraz backendu dla serwisow objetych lite ustawia zmienna BACKEND_LITE_IMAGE
+# w .env (patrz .env.example / instrukcja wdrozenia).
+
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-frontend:latest}
+
+  docs:
+    image: ${DOCS_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-docs:latest}
+
+  celery-redaction:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    environment:
+      - DEPLOYMENT_MODE=lite
+
+  celery-embedding-worker:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    environment:
+      - DEPLOYMENT_MODE=lite
+
+  flower:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
