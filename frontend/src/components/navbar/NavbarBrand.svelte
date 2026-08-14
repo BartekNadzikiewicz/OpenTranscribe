@@ -1,47 +1,19 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { t } from '$stores/locale';
 
   // Import logo asset for proper Vite processing
   import logoBanner from '../../assets/logo-banner.png';
-
-  const dispatch = createEventDispatcher<{ about: void }>();
 </script>
 
-<!-- Far Left: OpenTranscribe Logo -->
+<!-- Far Left: logo (nieklikalne — "O programie" jest w menu użytkownika) -->
 <div class="navbar-brand">
-  <button
-    class="logo-link"
-    on:click={() => dispatch('about')}
-    title={$t('nav.logoTooltip')}
-  >
-    <img src={logoBanner} alt={$t('nav.logoAlt')} class="logo-banner" />
-  </button>
+  <img src={logoBanner} alt={$t('nav.logoAlt')} class="logo-banner" />
 </div>
 
 <style>
   .navbar-brand {
     display: flex;
     align-items: center;
-  }
-
-  .logo-link {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    color: var(--primary-color);
-    font-weight: 600;
-    font-size: 1.25rem;
-    transition: transform 0.2s ease;
-    border-radius: 8px;
-    padding: 0.25rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-
-  .logo-link:hover {
-    transform: scale(1.1);
   }
 
   .logo-banner {

@@ -291,7 +291,7 @@
 <nav class="navbar">
   <div class="navbar-container">
     <!-- Far Left: OpenTranscribe Logo -->
-    <NavbarBrand on:about={() => showAboutModal = true} />
+    <NavbarBrand />
 
     <!-- Sub-navigation for the Gallery section: which VIEW of the section you
          are looking at. It deliberately does not repeat the section name — the
@@ -554,6 +554,7 @@
         bind:this={userDropdown}
         user={$user}
         on:open={handleUserDropdownOpen}
+        on:about={() => (showAboutModal = true)}
         on:openSettings={handleOpenSettings}
         on:itemSelected={handleUserMenuItemSelected}
         on:logout={handleLogout}

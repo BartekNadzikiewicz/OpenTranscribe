@@ -20,6 +20,7 @@
   $: isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const dispatch = createEventDispatcher<{
+    about: void;
     open: void;
     openSettings: void;
     logout: void;
@@ -72,6 +73,12 @@
     window.open(url, '_blank', 'noopener');
     showDropdown = false;
     dispatch('itemSelected');
+  }
+
+  function handleAbout() {
+    showDropdown = false;
+    dispatch('itemSelected');
+    dispatch('about');
   }
 
   function handleLogout() {
@@ -176,6 +183,18 @@
           <span>{$t('nav.flowerDashboard')}</span>
         </button>
       {/if}
+      <button
+        class="dropdown-item"
+        on:click={handleAbout}
+        title={$t('about.title')}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>{$t('about.title')}</span>
+      </button>
       <div class="dropdown-divider"></div>
       <button
         class="dropdown-item logout"
