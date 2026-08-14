@@ -85,3 +85,7 @@ boto3>=1.43.40
 openai>=2.44.0
 # requests is pulled in transitively by many packages above, but list explicitly for clarity
 requests>=2.34.2
+
+cachetools>=7.1.4,<8
+imohash>=1.1.0
+nltk>=3.9.4
