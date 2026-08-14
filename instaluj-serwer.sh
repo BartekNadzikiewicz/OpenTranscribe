@@ -9,6 +9,8 @@ cd "$(dirname "$0")"
 echo "== 1/4 Srodowisko =="
 docker --version || { echo "BLAD: brak dockera"; exit 1; }
 docker compose version || { echo "BLAD: brak docker compose v2"; exit 1; }
+docker info >/dev/null 2>&1 || { echo "BLAD: brak dostepu do demona Dockera"; \
+  echo "  fix: sudo usermod -aG docker \$USER  + ponowne zalogowanie"; exit 1; }
 echo "CPU: $(nproc), RAM: $(free -h | awk 'NR==2{print $2" (wolne "$7")"}')"
 df -h . | tail -1
 echo "Cel ze spec par.13: 8 CPU / 16 GB RAM / 50+ GB dysku."

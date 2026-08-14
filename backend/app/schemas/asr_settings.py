@@ -20,6 +20,7 @@ class ASRProvider(StrEnum):
     AWS = "aws"
     SPEECHMATICS = "speechmatics"
     GLADIA = "gladia"
+    ELEVENLABS = "elevenlabs"
     PYANNOTE = "pyannote"
 
 

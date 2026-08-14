@@ -88,6 +88,7 @@ _VALID_PROVIDERS = frozenset(
         "aws",
         "speechmatics",
         "gladia",
+        "elevenlabs",
         "pyannote",
     }
 )
@@ -102,6 +103,7 @@ _CLOUD_PROVIDERS = {
     "aws",
     "speechmatics",
     "gladia",
+    "elevenlabs",
     "pyannote",
 }
 

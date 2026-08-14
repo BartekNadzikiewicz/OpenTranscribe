@@ -61,3 +61,16 @@ def test_no_diarization_yields_single_speakerless_segment():
 
 def test_empty_token_stream_yields_no_segments():
     assert _provider()._words_to_segments([]) == []
+
+
+def test_panel_validation_knows_every_catalog_provider():
+    """Regresja 2026-08-14: provider byl w fabryce, ale panelowa walidacja
+    (enum schematu + _VALID_PROVIDERS) go nie znala -> HTTP 422 z formularza.
+    Kazdy provider z katalogu fabryki musi byc znany obu warstwom."""
+    from app.api.endpoints.asr_settings import _VALID_PROVIDERS
+    from app.schemas.asr_settings import ASRProvider
+    from app.services.asr.factory import ASR_PROVIDER_CATALOG
+
+    for provider_id in ASR_PROVIDER_CATALOG:
+        assert provider_id in _VALID_PROVIDERS, f"{provider_id} brak w _VALID_PROVIDERS"
+        ASRProvider(provider_id)  # ValueError, gdy brak w enumie schematu

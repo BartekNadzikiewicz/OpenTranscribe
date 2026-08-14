@@ -14,6 +14,7 @@ export type ASRProvider =
   | 'aws'
   | 'speechmatics'
   | 'gladia'
+  | 'elevenlabs'
   | 'pyannote';
 
 type ASRConnectionStatus = 'success' | 'failed' | 'pending' | 'untested';
@@ -476,6 +477,7 @@ export class ASRSettingsApi {
       aws: 'Amazon Transcribe',
       speechmatics: 'Speechmatics',
       gladia: 'Gladia',
+      elevenlabs: 'ElevenLabs',
       pyannote: 'pyannote.ai',
     };
     return displayNames[provider] || provider;
