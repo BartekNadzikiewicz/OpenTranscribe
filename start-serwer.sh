@@ -5,6 +5,9 @@
 #         ./start-serwer.sh logs backend
 set -e
 cd "$(dirname "$0")"
+# Serwer testowy: male pule procesow (RAM!); te exporty dzialaja,
+# bo tutejszy compose podstawia zmienne tylko ze srodowiska powloki.
+export CLOUD_ASR_CONCURRENCY=${CLOUD_ASR_CONCURRENCY:-4} CPU_WORKER_CONCURRENCY=${CPU_WORKER_CONCURRENCY:-4} NLP_CONCURRENCY=${NLP_CONCURRENCY:-2} DOWNLOAD_CONCURRENCY=${DOWNLOAD_CONCURRENCY:-2}
 
 PLIKI="-f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.lite.yml -f docker-compose.ghcr.yml"
 

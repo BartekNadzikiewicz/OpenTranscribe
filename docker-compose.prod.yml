@@ -12,7 +12,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     # No volumes needed - temp files live in container only
     environment:
       # In prod the frontend container is nginx and it proxies /api to the backend
@@ -38,7 +37,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Production: only model cache, no code mounts
       - ${MODEL_CACHE_DIR:-./models}/huggingface:/home/appuser/.cache/huggingface
@@ -52,7 +50,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Production: only model cache for download worker
       - ${MODEL_CACHE_DIR:-./models}/huggingface:/home/appuser/.cache/huggingface
@@ -63,7 +60,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     # No volumes needed - CPU worker doesn't need model cache
 
   celery-redaction:
@@ -71,7 +67,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Redaction worker needs the HuggingFace cache for GLiNER + toxicity models
       - ${MODEL_CACHE_DIR:-./models}/huggingface:/home/appuser/.cache/huggingface
@@ -82,7 +77,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     # No volumes needed - cloud-ASR worker is network-bound only
 
   celery-nlp-worker:
@@ -90,7 +84,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     # No volumes needed - NLP worker doesn't need model cache
 
   celery-embedding-worker:
@@ -98,7 +91,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Production: sentence-transformers model cache
       - ${MODEL_CACHE_DIR:-./models}/sentence-transformers:/home/appuser/.cache/sentence-transformers
@@ -110,7 +102,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     # No volumes needed - scheduler state lives in container only
 
   frontend:
@@ -118,7 +109,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod  # Production build with NGINX
-    pull_policy: always
     ports:
       - "${FRONTEND_PORT:-5173}:8080"  # Production NGINX port
     environment:
@@ -135,7 +125,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
 
   # OpenSearch production security (enable security plugin with TLS + auth)
   # Requires OPENSEARCH_ADMIN_PASSWORD set in .env
@@ -163,7 +152,6 @@ services:
       args:
         # Repo-root VERSION is outside this build context; opentr.sh exports it.
         OT_VERSION: ${APP_VERSION:-}
-    pull_policy: always
     ports:
       - "${DOCS_PORT:-5183}:8080"
     environment:
@@ -177,7 +165,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Production: Model cache directories
       - ${MODEL_CACHE_DIR:-./models}/huggingface:/home/appuser/.cache/huggingface
@@ -194,7 +181,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Production: Model cache directories
       - ${MODEL_CACHE_DIR:-./models}/huggingface:/home/appuser/.cache/huggingface
@@ -209,7 +195,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod  # Production build
-    pull_policy: always
     volumes:
       # Production: Model cache directories
       - ${MODEL_CACHE_DIR:-./models}/huggingface:/home/appuser/.cache/huggingface

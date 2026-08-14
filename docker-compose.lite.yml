@@ -24,7 +24,6 @@ services:
   # the image and the deployment mode marker here.
   celery-cloud-asr-worker:
     image: ${BACKEND_LITE_IMAGE:-davidamacey/opentranscribe-backend-lite:latest}
-    pull_policy: ${PULL_POLICY:-always}
     environment:
       - DEPLOYMENT_MODE=lite
 

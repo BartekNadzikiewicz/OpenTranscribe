@@ -1,10 +1,10 @@
 # Overlay: obrazy z ghcr.io (fork) zamiast Docker Huba + domkniecie serwisow,
 # ktorych nie pokrywa docker-compose.lite.yml (redaction/embedding/flower).
-# Uzycie na serwerze (razem ze start-serwer.sh):
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-#     -f docker-compose.lite.yml -f docker-compose.ghcr.yml up -d
-# Obraz backendu dla serwisow objetych lite ustawia zmienna BACKEND_LITE_IMAGE
-# w .env (patrz .env.example / instrukcja wdrozenia).
+# KAZDY serwis backendowy ma tu jawny wpis z fallbackiem na NASZ obraz:
+# compose na serwerze nie podstawia zmiennych z .env, a fallbacki nakladek
+# prod/lite wskazuja Docker Huba (w tym PELNY backend 8,9 GB) - bez tych
+# wpisow start sciagal cudze obrazy (incydenty 2026-08-14, dysk ~15 GB).
+# Uzycie na serwerze: ./start-serwer.sh (ten plik OSTATNI na liscie -f).
 
 services:
   frontend:
@@ -12,6 +12,24 @@ services:
 
   docs:
     image: ${DOCS_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-docs:latest}
+
+  backend:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-cloud-asr-worker:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-cpu-worker:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-nlp-worker:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-download-worker:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-beat:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
 
   celery-redaction:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
@@ -24,4 +42,18 @@ services:
       - DEPLOYMENT_MODE=lite
 
   flower:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  # Serwisy wylaczane replikami/profilami GPU - niektore compose i tak je
+  # przetwarzaja; jawny obraz lite chroni przed pobraniem pelnego backendu.
+  celery-worker:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-worker-gpu-transcribe:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-worker-gpu-diarize:
+    image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+
+  celery-worker-gpu-scaled:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
