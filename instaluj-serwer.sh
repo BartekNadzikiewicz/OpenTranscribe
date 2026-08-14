@@ -35,6 +35,14 @@ else
   printf 'ELEVENLABS_MODEL=scribe_v2\nCAPABILITY_OVERRIDES=chat.rag=false,chat.ungrounded=false\n' >> .env
   read -r -s -p "Klucz API ElevenLabs (pisanie niewidoczne): " K
   echo
+  kod=$(curl -s -o /dev/null -w "%{http_code}" -H "xi-api-key: $K" \
+    https://api.elevenlabs.io/v1/user || echo "brak-sieci")
+  case "$kod" in
+    200) echo "Klucz zweryfikowany w API (200)." ;;
+    401) echo "BLAD: API odrzuca ten klucz (401) - literowka albo klucz"; \
+         echo "  bez uprawnienia odczytu konta. Popraw i uruchom ponownie."; exit 1 ;;
+    *)   echo "UWAGA: nie udalo sie zweryfikowac klucza (kod: $kod) - kontynuuje." ;;
+  esac
   printf 'ELEVENLABS_API_KEY=%s\n' "$K" >> .env
   unset K
   if grep -q CHANGE_ME .env; then echo "BLAD: w .env zostaly CHANGE_ME"; exit 1; fi
