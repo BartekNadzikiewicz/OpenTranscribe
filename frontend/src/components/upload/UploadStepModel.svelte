@@ -5,6 +5,9 @@
   export let selectedWhisperModel: string | null = null;
   export let adminDefaultModel = 'large-v3-turbo';
   export let skipSummary = false;
+  // False in lite deployments: no local Whisper is installed, so the backend
+  // rejects whisper_model overrides — only the summary toggle remains.
+  export let allowModelSelection = true;
 
   const dispatch = createEventDispatcher<{
     change: { selectedWhisperModel: string | null; skipSummary: boolean };
@@ -18,23 +21,25 @@
 <div class="step-model">
   <p class="step-hint">{$t('uploader.modelHint')}</p>
 
-  <div class="field">
-    <label for="whisper-model-select">
-      {$t('uploader.whisperModel')}
-      <span class="hint">{$t('uploader.whisperModelHint')}</span>
-    </label>
-    <select id="whisper-model-select" bind:value={selectedWhisperModel} on:change={emitChange} class="model-select">
-      <option value={null}>
-        {$t('uploader.highQuality')} ({adminDefaultModel})
-      </option>
-      <option value="base">
-        {$t('uploader.fastProcessing')}
-      </option>
-    </select>
-    {#if selectedWhisperModel === 'base'}
-      <p class="model-note">{$t('uploader.fastProcessingHint')}</p>
-    {/if}
-  </div>
+  {#if allowModelSelection}
+    <div class="field">
+      <label for="whisper-model-select">
+        {$t('uploader.whisperModel')}
+        <span class="hint">{$t('uploader.whisperModelHint')}</span>
+      </label>
+      <select id="whisper-model-select" bind:value={selectedWhisperModel} on:change={emitChange} class="model-select">
+        <option value={null}>
+          {$t('uploader.highQuality')} ({adminDefaultModel})
+        </option>
+        <option value="base">
+          {$t('uploader.fastProcessing')}
+        </option>
+      </select>
+      {#if selectedWhisperModel === 'base'}
+        <p class="model-note">{$t('uploader.fastProcessingHint')}</p>
+      {/if}
+    </div>
+  {/if}
 
   <!-- AI Summary -->
   <div class="section">

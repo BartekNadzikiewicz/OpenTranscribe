@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.capabilities import DEPLOYMENT_DISABLED_CAPABILITIES
 from app.core.tenant_limits import TenantChatLimits
 from app.core.tenant_limits import reset_resolvers
 from app.core.tenant_limits import resolve_allowed_models
@@ -136,6 +137,10 @@ def test_a_failing_allowlist_resolver_does_not_lock_everyone_out():
 # --------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    DEPLOYMENT_DISABLED_CAPABILITIES.get("chat.ungrounded") is False,
+    reason="this deployment disables ungrounded chat in the image (see PRZEROBKI)",
+)
 def test_ungrounded_chat_is_allowed_by_default():
     """Open-source and paid tiers alike. It has legitimate uses ("rewrite this
     summary more formally"), so it is not gated by default anywhere.

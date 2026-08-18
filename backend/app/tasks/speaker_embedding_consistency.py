@@ -307,6 +307,17 @@ def speaker_embedding_consistency_check_task(
         manual: If True, triggered by admin UI (always runs even if recently ran).
         user_id: Admin user ID for WebSocket notifications (default 1 for beat schedule).
     """
+    from app.core.config import is_lite_deployment
+
+    if is_lite_deployment():
+        # Repair batches route to the gpu queue, which has no consumer in lite
+        # mode — dispatching them shows a "Repairing 0 of N" notification that
+        # never progresses. Files transcribed by cloud providers in lite mode
+        # have no embeddings by design, so the check would also re-flag them
+        # every run.
+        logger.info("Lite deployment: skipping embedding consistency check (no GPU workers)")
+        return {"status": "skipped", "reason": "lite_deployment"}
+
     r = get_redis()
 
     # Guard against concurrent runs

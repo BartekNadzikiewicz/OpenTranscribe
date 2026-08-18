@@ -36,6 +36,33 @@ VALID_LOCAL_WHISPER_MODELS = frozenset(
 )
 
 
+def _validate_whisper_model_value(v: str | None) -> str | None:
+    """Shared whisper_model validation for upload-prepare and reprocess requests.
+
+    Rejects any override in lite deployments: the lite image ships no local
+    Whisper, so a model override would route the job to a transcription path
+    that cannot run (capability rule: unavailable features refuse at the API,
+    they are not merely hidden in the UI).
+    """
+    if v is None:
+        return v
+    v = v.strip()
+    if not v:
+        return None
+    from app.core.config import is_lite_deployment
+
+    if is_lite_deployment():
+        raise ValueError(
+            "Local Whisper models are unavailable in this deployment; "
+            "transcription always uses the server-configured ASR provider"
+        )
+    if v not in VALID_LOCAL_WHISPER_MODELS:
+        raise ValueError(
+            f"Unknown Whisper model '{v}'. Valid models: {sorted(VALID_LOCAL_WHISPER_MODELS)}"
+        )
+    return v
+
+
 class TaskStatus(StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -101,14 +128,7 @@ class ReprocessRequest(BaseModel):
     @classmethod
     def validate_whisper_model(cls, v: str | None) -> str | None:
         """Validate that whisper_model is a known local model name."""
-        if v is None:
-            return v
-        v = v.strip()
-        if v and v not in VALID_LOCAL_WHISPER_MODELS:
-            raise ValueError(
-                f"Unknown Whisper model '{v}'. Valid models: {sorted(VALID_LOCAL_WHISPER_MODELS)}"
-            )
-        return v or None
+        return _validate_whisper_model_value(v)
 
     @model_validator(mode="after")
     def validate_min_max_speakers(self) -> "ReprocessRequest":
@@ -215,14 +235,7 @@ class PrepareUploadRequest(BaseModel):
     @classmethod
     def validate_whisper_model(cls, v: str | None) -> str | None:
         """Validate that whisper_model is a known local model name."""
-        if v is None:
-            return v
-        v = v.strip()
-        if v and v not in VALID_LOCAL_WHISPER_MODELS:
-            raise ValueError(
-                f"Unknown Whisper model '{v}'. Valid models: {sorted(VALID_LOCAL_WHISPER_MODELS)}"
-            )
-        return v or None
+        return _validate_whisper_model_value(v)
 
     @model_validator(mode="after")
     def validate_min_max_speakers(self) -> "PrepareUploadRequest":

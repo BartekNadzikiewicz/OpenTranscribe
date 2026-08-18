@@ -28,12 +28,31 @@ from app.core.constants import GPUPriority
 from app.db.session_utils import session_scope
 from app.models.media import FileStatus
 from app.models.media import MediaFile
+from app.core.config import is_lite_deployment
 from app.transcription.config import LIGHTWEIGHT_MODELS
 from app.utils.task_utils import create_task_record
 from app.utils.task_utils import update_media_file_status
 from app.utils.task_utils import update_task_status
 
 logger = logging.getLogger(__name__)
+
+
+def _route_to_cpu_whisper(whisper_model: str | None) -> bool:
+    """Whether a lightweight-model override should route to local CPU Whisper.
+
+    The API rejects whisper_model overrides in lite mode, but this chokepoint
+    also covers internal callers (watch sources, batch dispatch): the lite
+    image ships no Whisper at all, so routing there guarantees a failed task.
+    """
+    if whisper_model not in LIGHTWEIGHT_MODELS:
+        return False
+    if is_lite_deployment():
+        logger.warning(
+            f"Ignoring whisper_model={whisper_model!r} override: local Whisper "
+            f"is unavailable in lite deployments; using the configured ASR provider"
+        )
+        return False
+    return True
 
 
 def _resolve_gpu_queue(user_id: int, db) -> str:
@@ -99,7 +118,7 @@ def dispatch_transcription_pipeline(
 
     if not task_id:
         task_id = str(uuid.uuid4())
-    use_cpu = whisper_model in LIGHTWEIGHT_MODELS
+    use_cpu = _route_to_cpu_whisper(whisper_model)
 
     # Create task record and set file to PROCESSING
     with session_scope() as db:
@@ -241,7 +260,7 @@ def dispatch_batch_transcription(
     task_ids = []
     chains = []
     batch_whisper_model = kwargs.get("whisper_model")
-    use_cpu = batch_whisper_model in LIGHTWEIGHT_MODELS
+    use_cpu = _route_to_cpu_whisper(batch_whisper_model)
 
     for file_uuid in file_uuids:
         try:

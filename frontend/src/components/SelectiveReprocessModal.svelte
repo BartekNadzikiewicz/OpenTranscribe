@@ -35,6 +35,9 @@
   let isCloudASR = false;
   let activeASRProvider = 'local';
   let activeASRModel = '';
+  // Lite deployments have no local Whisper — hide the model override
+  // (the backend rejects whisper_model there anyway).
+  let allowModelSelection = true;
 
   // Model selection for reprocessing
   let selectedReprocessModel: string | null = null;
@@ -276,6 +279,7 @@
       isCloudASR = status.is_cloud_provider ?? false;
       activeASRProvider = status.active_provider ?? 'local';
       activeASRModel = status.active_model ?? '';
+      allowModelSelection = status.deployment_mode !== 'lite';
     }).catch(() => {
       isCloudASR = false;
       activeASRProvider = 'local';
@@ -515,7 +519,7 @@
               <!-- Step 2: Settings (only when needsSettingsStep && currentStep === 2) -->
               {:else if isOnSettingsStep()}
                 <!-- Model Selection -->
-                {#if selectedStages.has('transcription')}
+                {#if selectedStages.has('transcription') && allowModelSelection}
                   <div class="setting-field" style="margin-bottom: 1rem;">
                     <label for="reprocess-model-select">
                       {$t('uploader.whisperModel')}

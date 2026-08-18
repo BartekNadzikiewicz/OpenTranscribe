@@ -112,6 +112,9 @@
   let skipSummary = false;
   let selectedWhisperModel: string | null = null;
   let adminDefaultModel = 'large-v3-turbo';
+  // Lite deployments have no local Whisper — the model selector is hidden
+  // and the backend rejects whisper_model overrides.
+  let allowModelSelection = true;
   let transcriptionSettings: TranscriptionSettings | null = null;
   let transcriptionSystemDefaults: TranscriptionSystemDefaults | null = null;
 
@@ -216,6 +219,13 @@
         const activeInfo = await ASRSettingsApi.getActiveLocalModel();
         adminDefaultModel = activeInfo.active_model || 'large-v3-turbo';
       } catch { adminDefaultModel = 'large-v3-turbo'; }
+    })();
+
+    (async () => {
+      try {
+        const asrStatus = await ASRSettingsApi.getStatus();
+        allowModelSelection = asrStatus.deployment_mode !== 'lite';
+      } catch { allowModelSelection = true; }
     })();
 
     (async () => {
@@ -923,6 +933,7 @@
           <UploadStepModel
             bind:selectedWhisperModel
             {adminDefaultModel}
+            {allowModelSelection}
             bind:skipSummary
           />
 

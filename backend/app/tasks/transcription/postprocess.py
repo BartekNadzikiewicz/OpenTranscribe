@@ -17,6 +17,8 @@ import time
 import numpy as np
 
 from app.core.celery import celery_app
+from app.core.config import is_lite_deployment
+from app.core.config import settings
 from app.core.constants import CeleryQueues
 from app.core.constants import CPUPriority
 from app.db.session_utils import session_scope
@@ -85,6 +87,10 @@ def finalize_transcription(self, gpu_result: dict) -> dict:
     # will clean it up themselves once they finish. Phase 2 PR #4 relies
     # on this for the cloud-ASR embedding path to read from scratch.
     defer_temp_cleanup = False
+    # Set only when the async GPU embedding task was actually dispatched —
+    # completion is then its responsibility. Every other path must complete
+    # the pipeline here, or the file sits at 90% until the recovery sweep.
+    embedding_dispatched = False
 
     try:
         diarization_disabled = gpu_result.get("diarization_disabled", False)
@@ -129,27 +135,42 @@ def finalize_transcription(self, gpu_result: dict) -> dict:
                 logger.warning(f"Failed to dispatch rediarization: {e}")
         elif not diarization_disabled:
             if is_cloud_asr:
-                # Cloud ASR with provider diarization: dispatch GPU embedding extraction
-                send_progress_notification(
-                    user_id, file_id, 0.80, "Dispatching speaker embedding extraction"
-                )
-                try:
-                    from app.tasks.speaker_embedding_task import extract_speaker_embeddings_task
-
-                    extract_speaker_embeddings_task.apply_async(
-                        args=[str(file_uuid), speaker_mapping],
-                        kwargs={"pipeline_task_id": task_id},
-                        queue=CeleryQueues.GPU,
-                    )
-                    # Embedding task reads the preprocessed WAV; defer
-                    # cleanup until it finishes (it cleans up itself).
-                    defer_temp_cleanup = True
+                if is_lite_deployment() or not settings.CLOUD_ASR_EXTRACT_EMBEDDINGS:
+                    # No GPU worker consumes the gpu queue in lite mode, so a
+                    # dispatched embedding task would never run and the file
+                    # would sit at 90% until the recovery sweep. Provider
+                    # diarization labels are already saved — finish without
+                    # embeddings. Also honors CLOUD_ASR_EXTRACT_EMBEDDINGS=false.
                     logger.info(
-                        f"Dispatched speaker embedding extraction to GPU queue for "
-                        f"cloud-transcribed file {file_id}"
+                        f"Skipping speaker embedding dispatch for file {file_id} "
+                        f"(lite={is_lite_deployment()}, "
+                        f"extract_embeddings={settings.CLOUD_ASR_EXTRACT_EMBEDDINGS})"
                     )
-                except Exception as e:
-                    logger.warning(f"Failed to dispatch speaker embedding task: {e}")
+                else:
+                    # Cloud ASR with provider diarization: dispatch GPU embedding extraction
+                    send_progress_notification(
+                        user_id, file_id, 0.80, "Dispatching speaker embedding extraction"
+                    )
+                    try:
+                        from app.tasks.speaker_embedding_task import (
+                            extract_speaker_embeddings_task,
+                        )
+
+                        extract_speaker_embeddings_task.apply_async(
+                            args=[str(file_uuid), speaker_mapping],
+                            kwargs={"pipeline_task_id": task_id},
+                            queue=CeleryQueues.GPU,
+                        )
+                        # Embedding task reads the preprocessed WAV; defer
+                        # cleanup until it finishes (it cleans up itself).
+                        defer_temp_cleanup = True
+                        embedding_dispatched = True
+                        logger.info(
+                            f"Dispatched speaker embedding extraction to GPU queue for "
+                            f"cloud-transcribed file {file_id}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to dispatch speaker embedding task: {e}")
             else:
                 # Local ASR: process embeddings inline
                 send_progress_notification(
@@ -178,14 +199,17 @@ def finalize_transcription(self, gpu_result: dict) -> dict:
             with session_scope() as db:
                 update_task_status(db, task_id, "completed", progress=1.0, completed=True)
             send_completion_notification(user_id, file_id)
-        elif is_cloud_asr and not diarization_disabled:
+        elif embedding_dispatched:
             # Cloud ASR with provider diarization: embedding task runs async on GPU
             send_progress_notification(user_id, file_id, 0.90, "Processing speaker identification")
             with session_scope() as db:
                 update_task_status(db, task_id, "in_progress", progress=0.90)
             # Completion notification will be sent by extract_speaker_embeddings_task
         else:
-            # Local ASR or diarization disabled: embeddings already done — mark completed.
+            # Local ASR, diarization disabled, or cloud ASR without a GPU
+            # embedding task (lite mode, embeddings off, or dispatch failure —
+            # previously the dispatch-failure case hung at 90% forever):
+            # embeddings already done or skipped — mark completed.
             # This is the single-task terminus for the local pipeline, so fire the
             # metering hook here (the cloud-ASR + local-diarization path meters from
             # rediarize_task instead, to avoid double-counting the same run).

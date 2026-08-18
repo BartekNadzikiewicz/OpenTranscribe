@@ -5,7 +5,6 @@
   import { onMount, onDestroy } from "svelte";
   import NotificationsPanel from "./NotificationsPanel.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
-  import AboutModal from "./AboutModal.svelte";
   import NavbarBrand from "$components/navbar/NavbarBrand.svelte";
   import UserDropdown from "$components/navbar/UserDropdown.svelte";
   import UsageBadge from "$lib/cloud/components/UsageBadge.svelte";
@@ -43,8 +42,6 @@
   // Recording control popup state
   let showRecordingControls = false;
 
-  // About modal state
-  let showAboutModal = false;
 
   // Mobile menu state
   let mobileMenuOpen = false;
@@ -554,7 +551,6 @@
         bind:this={userDropdown}
         user={$user}
         on:open={handleUserDropdownOpen}
-        on:about={() => (showAboutModal = true)}
         on:openSettings={handleOpenSettings}
         on:itemSelected={handleUserMenuItemSelected}
         on:logout={handleLogout}
@@ -594,8 +590,6 @@
   <NotificationsPanel />
 {/if}
 
-<!-- About Modal -->
-<AboutModal bind:showModal={showAboutModal} />
 
 <style>
   .navbar {

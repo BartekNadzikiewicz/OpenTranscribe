@@ -1115,3 +1115,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def is_lite_deployment() -> bool:
+    """True when running the lite image: no GPU workers, no local ASR or
+    speaker-embedding models. Tasks routed to GPU queues have no consumer
+    in this mode and must not be dispatched."""
+    return settings.DEPLOYMENT_MODE.strip().lower() == "lite"
