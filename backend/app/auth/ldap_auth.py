@@ -194,8 +194,16 @@ def _auto_bind_mode(cfg: LdapConfig):
     deployment following the UI (SSL off, StartTLS on) sent every user's password in
     cleartext. ``Connection.start_tls()`` creates a default ``Tls()`` itself when the
     server has none, so honouring the flag needs no extra TLS wiring here.
+
+    LDAPS (``use_ssl``) must NOT request StartTLS: the socket is already TLS
+    end-to-end and issuing StartTLS over it is a protocol error — Active
+    Directory refuses the bind ("automatic start tls before bind not
+    successful"), failing every LDAPS login. StartTLS applies to the plain
+    port only.
     """
-    return AUTO_BIND_TLS_BEFORE_BIND if (cfg.use_ssl or cfg.use_tls) else True
+    if cfg.use_ssl:
+        return True
+    return AUTO_BIND_TLS_BEFORE_BIND if cfg.use_tls else True
 
 
 def _get_ldap_server(cfg: LdapConfig) -> Server:

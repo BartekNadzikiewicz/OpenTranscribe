@@ -26,8 +26,17 @@ def test_starttls_on_plain_port_negotiates_tls_before_bind():
     assert _auto_bind_mode(_cfg(use_tls=True)) == AUTO_BIND_TLS_BEFORE_BIND
 
 
-def test_ldaps_path_is_unchanged():
-    assert _auto_bind_mode(_cfg(port=636, use_ssl=True)) == AUTO_BIND_TLS_BEFORE_BIND
+def test_ldaps_never_requests_starttls():
+    """LDAPS is already TLS end-to-end; StartTLS over it is a protocol error
+    (AD refuses the bind: 'automatic start tls before bind not successful').
+    The original test here pinned the buggy behavior as 'unchanged' — caught
+    on the first real LDAPS login against Active Directory (2026-08-18)."""
+    assert _auto_bind_mode(_cfg(port=636, use_ssl=True)) is True
+
+
+def test_ldaps_wins_over_a_stray_starttls_flag():
+    """Both flags set (misconfigured UI): the LDAPS transport decides."""
+    assert _auto_bind_mode(_cfg(port=636, use_ssl=True, use_tls=True)) is True
 
 
 def test_plain_ldap_without_either_flag_stays_plain():
