@@ -8,6 +8,9 @@
   // False in lite deployments: no local Whisper is installed, so the backend
   // rejects whisper_model overrides — only the summary toggle remains.
   export let allowModelSelection = true;
+  // False when no LLM provider is configured: no summary will ever be
+  // generated, so offering a skip-summary toggle is a dead control.
+  export let showSummaryToggle = true;
 
   const dispatch = createEventDispatcher<{
     change: { selectedWhisperModel: string | null; skipSummary: boolean };
@@ -42,6 +45,7 @@
   {/if}
 
   <!-- AI Summary -->
+  {#if showSummaryToggle}
   <div class="section">
     <h4 class="section-title">{$t('upload.aiSummary')}</h4>
     <label class="toggle-row">
@@ -55,6 +59,7 @@
       </label>
     </label>
   </div>
+  {/if}
 </div>
 
 <style>

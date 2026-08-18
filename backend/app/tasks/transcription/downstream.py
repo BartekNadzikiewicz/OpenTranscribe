@@ -55,11 +55,40 @@ def _dispatch_automatic_summary(
             )
             return
 
+        # No LLM configured: decide HERE (CPU queue) instead of queueing a task
+        # whose worker may not run it — a queued-but-never-run summarization
+        # left summary_status='pending', shown as an eternal "waiting for
+        # summary". Mirrors _handle_no_llm_configured in the task itself.
+        if not _llm_configured(int(media_file.user_id)):
+            media_file.summary_status = "not_configured"  # type: ignore[assignment]
+            media_file.summary_data = None  # type: ignore[assignment]
+            db.commit()
+            logger.info(f"No LLM configured — not queueing summarization for file {file_id}")
+            return
+
     summary_task = summarize_transcript_task.delay(
         file_uuid=file_uuid,
         prompt_uuid=collection_prompt_uuid,
     )
     logger.info(f"Automatic summarization task {summary_task.id} started for file {file_id}")
+
+
+def _llm_configured(user_id: int) -> bool:
+    """Dispatch-time LLM configuration check (no health probe)."""
+    from app.services.llm_service import is_llm_configured
+
+    return is_llm_configured(user_id=user_id)
+
+
+def _file_owner_id(file_id: int) -> int | None:
+    """Owner user id for a file, or None when the lookup fails."""
+    try:
+        with session_scope() as db:
+            row = db.query(MediaFile.user_id).filter(MediaFile.id == file_id).first()
+            return int(row[0]) if row else None
+    except Exception as e:
+        logger.warning(f"Owner lookup failed for file {file_id}: {e}")
+        return None
 
 
 def _get_collection_prompt_uuid(file_id: int) -> str | None:
@@ -136,14 +165,18 @@ def trigger_automatic_summarization(
         if tasks_to_run is None or "summarization" in tasks_to_run:
             _dispatch_automatic_summary(file_id, file_uuid, collection_prompt_uuid)
 
-        # Topic extraction
+        # Topic extraction (LLM-backed — same dispatch-time gate as summarization)
         if tasks_to_run is None or "topic_extraction" in tasks_to_run:
-            from app.tasks.topic_extraction import extract_topics_task
+            owner_id = _file_owner_id(file_id)
+            if owner_id is not None and not _llm_configured(owner_id):
+                logger.info(f"No LLM configured — not queueing topic extraction for file {file_id}")
+            else:
+                from app.tasks.topic_extraction import extract_topics_task
 
-            topic_task = extract_topics_task.delay(file_uuid=file_uuid, force_regenerate=False)
-            logger.info(
-                f"Automatic topic extraction task {topic_task.id} started for file {file_id}"
-            )
+                topic_task = extract_topics_task.delay(file_uuid=file_uuid, force_regenerate=False)
+                logger.info(
+                    f"Automatic topic extraction task {topic_task.id} started for file {file_id}"
+                )
 
         # Speaker clustering (selective reprocessing only)
         _clustering_stages = {"speaker_clustering"}

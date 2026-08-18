@@ -1980,6 +1980,24 @@ class LLMServiceContext:
 
 
 # Utility function for quick LLM availability check
+def is_llm_configured(user_id: int | None = None) -> bool:
+    """Whether any LLM provider is configured (user or system level).
+
+    Configuration check only — no network health probe — so it is safe to
+    call on dispatch paths. A configured-but-unhealthy provider still returns
+    True: the task path owns reporting real errors.
+    """
+    try:
+        service = LLMService.create_from_settings(user_id=user_id)
+        if service is None:
+            return False
+        service.close()
+        return True
+    except Exception as e:
+        logger.warning(f"LLM configuration check failed (treating as unconfigured): {e}")
+        return False
+
+
 async def is_llm_available(user_id: int | None = None) -> bool:
     """Quick check to see if any LLM provider is available.
 

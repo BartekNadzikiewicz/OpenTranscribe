@@ -64,6 +64,19 @@ def _dispatch_llm_speaker_identification(file_uuid: str) -> None:
     so that the LLM always runs after gender attributes have been written to the DB.
     """
     try:
+        # Dispatch-time gate: with no LLM configured the task could only
+        # no-op (or sit unrun in the queue) — don't queue it at all.
+        from app.db.session_utils import session_scope
+        from app.models.media import MediaFile
+        from app.services.llm_service import is_llm_configured
+
+        with session_scope() as db:
+            row = db.query(MediaFile.user_id).filter(MediaFile.uuid == file_uuid).first()
+        owner_id = int(row[0]) if row else None
+        if not is_llm_configured(user_id=owner_id):
+            logger.info(f"No LLM configured — not queueing speaker identification for {file_uuid}")
+            return
+
         from app.tasks.speaker_tasks import identify_speakers_llm_task
 
         identify_speakers_llm_task.delay(file_uuid=file_uuid)

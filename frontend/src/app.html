@@ -136,8 +136,14 @@
       html,
       body,
       #app {
-        /* Prevent horizontal scroll on mobile */
-        overflow-x: hidden;
+        /* Prevent horizontal scroll on mobile.
+           `clip` (not `hidden`): overflow-x:hidden on <html>/<body> forces
+           overflow-y to compute to `auto`, turning both into scroll
+           containers — Chromium then demotes the root scroller and
+           mouse-wheel scrolling over page content stops working (only the
+           scrollbar itself still scrolls). `clip` clips without creating
+           a scroll container, so wheel scrolling keeps working. */
+        overflow-x: clip;
         max-width: 100vw;
         /* Prevent long words/URLs from causing horizontal overflow */
         overflow-wrap: break-word;

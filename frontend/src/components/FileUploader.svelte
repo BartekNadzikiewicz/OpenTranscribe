@@ -27,6 +27,7 @@
     DEFAULT_TRANSCRIPTION_SETTINGS
   } from '$lib/api/transcriptionSettings';
   import { ASRSettingsApi } from '$lib/api/asrSettings';
+  import { isLLMAvailable, llmStatusStore } from '$stores/llmStatus';
   import { MAX_UPLOAD_BYTES, exceedsUploadLimit, warrantsLargeUploadWarning } from '$lib/utils/uploadLimits';
   import { listTags } from '$lib/api/tags';
 
@@ -115,6 +116,13 @@
   // Lite deployments have no local Whisper — the model selector is hidden
   // and the backend rejects whisper_model overrides.
   let allowModelSelection = true;
+
+  // With no model choice AND no LLM (no summaries), the model step has
+  // nothing to show — drop it. Guarded so the assignment can't retrigger
+  // itself (filter only when the step is actually present).
+  $: if (!allowModelSelection && !$isLLMAvailable && steps.some(s => s.id === 'model')) {
+    steps = steps.filter(s => s.id !== 'model');
+  }
   let transcriptionSettings: TranscriptionSettings | null = null;
   let transcriptionSystemDefaults: TranscriptionSystemDefaults | null = null;
 
@@ -182,6 +190,8 @@
   onMount(() => {
     void loadProtectedMediaAuthConfig();
     loadRecordingSettings();
+    // May not be loaded yet if the user opened the uploader immediately.
+    llmStatusStore.initialize();
 
     (async () => {
       try {
@@ -934,6 +944,7 @@
             bind:selectedWhisperModel
             {adminDefaultModel}
             {allowModelSelection}
+            showSummaryToggle={$isLLMAvailable}
             bind:skipSummary
           />
 
