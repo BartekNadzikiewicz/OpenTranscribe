@@ -274,8 +274,20 @@ def _search_ldap_user(
     if extra_attributes:
         attributes.extend(extra_attributes)
 
-    # Search by username attribute first
-    search_filter = cfg.user_search_filter.format(username=_escape_ldap_filter(ldap_username))
+    # Search by username attribute first. The ONLY supported placeholder is
+    # {username}; an admin who types the attribute name into the braces —
+    # (sAMAccountName={sAMAccountName}) — otherwise gets an opaque KeyError
+    # swallowed as "unexpected error during LDAP authentication".
+    try:
+        search_filter = cfg.user_search_filter.format(
+            username=_escape_ldap_filter(ldap_username)
+        )
+    except (KeyError, IndexError) as e:
+        logger.error(
+            f"Invalid LDAP user search filter {cfg.user_search_filter!r}: the only "
+            f"supported placeholder is {{username}} (got {type(e).__name__}: {e})"
+        )
+        return None
 
     def _do_search(search_filter: str, attrs: list[str]) -> bool:
         """Execute search, retrying without group attr if needed. Returns True if found."""

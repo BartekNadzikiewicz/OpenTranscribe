@@ -42,3 +42,17 @@ def test_ldaps_wins_over_a_stray_starttls_flag():
 def test_plain_ldap_without_either_flag_stays_plain():
     """No silent upgrade: an operator who asked for neither still gets neither."""
     assert _auto_bind_mode(_cfg()) is True
+
+
+def test_bad_filter_placeholder_logs_clearly_instead_of_keyerror():
+    """(sAMAccountName={sAMAccountName}) — the attribute name typed into the
+    braces — must not blow up as an opaque KeyError (seen in the field
+    2026-08-18); the search returns None and the log names the fix."""
+    from unittest.mock import MagicMock
+
+    from app.auth.ldap_auth import _search_ldap_user
+
+    cfg = _cfg(user_search_filter="(sAMAccountName={sAMAccountName})", search_base="dc=x")
+    conn = MagicMock()
+    assert _search_ldap_user(cfg, conn, "jan", "jan") is None
+    conn.search.assert_not_called()
