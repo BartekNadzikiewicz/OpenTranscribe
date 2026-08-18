@@ -30,10 +30,11 @@ services:
       -c default_statistics_target=100
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    ports:
-      # Loopback-only: infra is reached over the compose network (postgres:5432);
-      # the host port is for local tooling/tests only — never expose it externally.
-      - "127.0.0.1:${POSTGRES_PORT:-5176}:5432"
+    # PRZERÓBKA (audyt 2026-08-17): host port NIE publikowany — serwer jest
+    # współdzielony z innymi usługami, a baza trzyma konta i transkrypcje.
+    # Dostęp administracyjny: `docker exec -it opentranscribe-postgres psql -U postgres opentranscribe`.
+    # ports:
+    #   - "127.0.0.1:${POSTGRES_PORT:-5176}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
@@ -53,10 +54,14 @@ services:
       - no-new-privileges:true
     volumes:
       - minio_data:/data
-    ports:
-      # Loopback-only (reached internally as minio:9000). Host ports for local use.
-      - "127.0.0.1:${MINIO_PORT:-5178}:9000"
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-5179}:9001"
+    # PRZERÓBKA (audyt 2026-08-17): host ports NIE publikowane. Przeglądarka NIE
+    # łączy się z MinIO bezpośrednio — nginx we frontendzie proxuje `/s3/` i
+    # `/minio/` do `minio:9000` po sieci compose (frontend/nginx.conf:169,195),
+    # więc pobieranie plików działa bez portu na hoście.
+    # Konsola MinIO (9001) do przeglądania kubełków: odkomentować na czas pracy.
+    # ports:
+    #   - "127.0.0.1:${MINIO_PORT:-5178}:9000"
+    #   - "127.0.0.1:${MINIO_CONSOLE_PORT:-5179}:9001"
     environment:
       # Server-side encryption at rest (AES-256-GCM)
       # Auto-encrypts all new objects. Existing unencrypted objects remain readable.
@@ -81,9 +86,10 @@ services:
     env_file: .env
     security_opt:
       - no-new-privileges:true
-    ports:
-      # Loopback-only (reached internally as redis:6379).
-      - "127.0.0.1:${REDIS_PORT:-5177}:6379"
+    # PRZERÓBKA (audyt 2026-08-17): host port NIE publikowany (kolejki zadań;
+    # osiągalny wewnętrznie jako redis:6379).
+    # ports:
+    #   - "127.0.0.1:${REDIS_PORT:-5177}:6379"
     volumes:
       - redis_data:/data
     # Use password if REDIS_PASSWORD is set in .env
@@ -147,10 +153,18 @@ services:
       - opensearch_data:/usr/share/opensearch/data
       # Pre-downloaded neural search models for offline deployments
       - ${MODEL_CACHE_DIR:-./models}/opensearch-ml:/ml-models:ro
-    ports:
-      # Loopback-only (reached internally as opensearch:9200).
-      - "127.0.0.1:${OPENSEARCH_PORT:-5180}:9200"
-      - "127.0.0.1:${OPENSEARCH_ADMIN_PORT:-5181}:9600"
+    # PRZERÓBKA (audyt 2026-08-17): host ports NIE publikowane.
+    # OpenSearch działa z DISABLE_SECURITY_PLUGIN=true, czyli BEZ ŻADNEGO
+    # uwierzytelniania, a trzyma pełny tekst wszystkich transkrypcji. Bind na
+    # 127.0.0.1 chroni tylko przed siecią — każdy INNY proces/usługa na tym samym
+    # hoście (a serwer ma być współdzielony) czytał indeks bez hasła. Aplikacja
+    # łączy się nazwą `opensearch:9200` po sieci compose, więc port na hoście był
+    # wyłącznie dla wygody debugowania.
+    # Diagnostyka: `docker exec opentranscribe-opensearch curl -s localhost:9200`.
+    # Przywrócenie (tymczasowo): odkomentować poniższe.
+    # ports:
+    #   - "127.0.0.1:${OPENSEARCH_PORT:-5180}:9200"
+    #   - "127.0.0.1:${OPENSEARCH_ADMIN_PORT:-5181}:9600"
     healthcheck:
       test: ["CMD-SHELL", "curl -sS http://localhost:9200 || exit 1"]
       interval: 5s
@@ -176,7 +190,12 @@ services:
       # Shared scratch for cross-worker preprocessed-WAV handoff
       - pipeline_scratch:/scratch/opentranscribe
     ports:
-      - "${BACKEND_PORT:-5174}:8080"
+      # PRZERÓBKA (audyt 2026-08-17): domyślny bind na 127.0.0.1, nie 0.0.0.0.
+      # Stack nie ma w sobie TLS — bez tego login i ciasteczka sesji szłyby po
+      # zwykłym HTTP, gdyby port stał się osiągalny z sieci. Tunel SSH działa bez
+      # zmian (łączy się z localhost SERWERA). Gdy IT postawi reverse proxy na
+      # INNEJ maszynie, ustawić w .env `BIND_ADDR=0.0.0.0`.
+      - "${BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-5174}:8080"
     environment:
       # Internal Docker network settings (hardcoded for service-to-service communication)
       - POSTGRES_HOST=postgres

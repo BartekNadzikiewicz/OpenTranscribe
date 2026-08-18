@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.api.deps_context import RequestContext
 from app.api.deps_context import get_current_context
 from app.api.endpoints.auth import get_current_active_user
+from app.core.capabilities import require_capability
 from app.core.config import settings
 from app.core.constants import VALID_AUDIO_QUALITIES
 from app.core.constants import VALID_VIDEO_QUALITIES
@@ -609,7 +610,13 @@ def _send_file_created_notification(media_file: MediaFile, user_id: int) -> None
         logger.warning(f"Failed to send file_created notification: {e}")
 
 
-@router.post("/process-url", response_model=URLProcessingResponse)
+@router.post(
+    "/process-url",
+    response_model=URLProcessingResponse,
+    # The url_ingest capability key existed in the registry but nothing enforced
+    # it — a CAPABILITY_OVERRIDES=url_ingest=false deployment still accepted URLs.
+    dependencies=[Depends(require_capability("url_ingest"))],
+)
 def process_media_url(
     request_data: URLProcessingRequest,
     db: Session = Depends(get_db),

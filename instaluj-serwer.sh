@@ -32,7 +32,19 @@ else
   sed -i "s|^ASR_PROVIDER=.*|ASR_PROVIDER=elevenlabs|" .env
   sed -i "s|^DEPLOYMENT_MODE=.*|DEPLOYMENT_MODE=lite|" .env
   sed -i "s|^BACKEND_LITE_IMAGE=.*|BACKEND_LITE_IMAGE=ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest|" .env
-  printf 'ELEVENLABS_MODEL=scribe_v2\nCAPABILITY_OVERRIDES=chat.rag=false,chat.ungrounded=false\n' >> .env
+  # CAPABILITY_OVERRIDES: pełny zestaw wyłączników (audyt bezpieczeństwa 2026-08-17).
+  # chat.*         — czat AI (brak podłączonego LLM);
+  # url_ingest     — import nagrań z URL (zamyka też SSRF/yt-dlp; egzekwuje łatkę #8);
+  # asr.user_providers — użytkownicy nie wybierają silnika (zamyka SSRF w /asr-settings/test);
+  # llm.user_settings  — KLUCZOWE: odcina kanał wysyłki transkryptów do zewnętrznego LLM
+  #                      (detektor redakcji "llm" + personalizacja LLM per użytkownik).
+  printf 'ELEVENLABS_MODEL=scribe_v2\nCAPABILITY_OVERRIDES=chat.rag=false,chat.ungrounded=false,url_ingest=false,asr.user_providers=false,llm.user_settings=false\n' >> .env
+  # LDAP: wymuś LDAPS (636). Checkbox StartTLS w panelu jest NIEFUNKCJONALNY (no-op) —
+  # przy porcie 389 hasła szłyby plaintext. Patrz audyt 2026-08-17.
+  sed -i "s|^LDAP_USE_SSL=.*|LDAP_USE_SSL=true|" .env
+  sed -i "s|^LDAP_PORT=.*|LDAP_PORT=636|" .env
+  # Wygeneruj hasło admina bootstrap, żeby nie trafiło jawnym tekstem do docker logs.
+  printf 'INITIAL_ADMIN_PASSWORD=%s\n' "$(openssl rand -base64 24)" >> .env
   read -r -s -p "Klucz API ElevenLabs (pisanie niewidoczne): " K
   echo
   kod=$(curl -s -o /dev/null -w "%{http_code}" -H "xi-api-key: $K" \

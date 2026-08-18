@@ -110,7 +110,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod  # Production build with NGINX
     ports:
-      - "${FRONTEND_PORT:-5173}:8080"  # Production NGINX port
+      # PRZERÓBKA (audyt 2026-08-17): bind domyślnie 127.0.0.1 (patrz backend
+      # w docker-compose.yml). `BIND_ADDR=0.0.0.0` w .env gdy proxy IT stoi
+      # na innej maszynie.
+      - "${BIND_ADDR:-127.0.0.1}:${FRONTEND_PORT:-5173}:8080"  # Production NGINX port
     environment:
       - NODE_ENV=production  # Production mode
     healthcheck:
@@ -153,7 +156,7 @@ services:
         # Repo-root VERSION is outside this build context; opentr.sh exports it.
         OT_VERSION: ${APP_VERSION:-}
     ports:
-      - "${DOCS_PORT:-5183}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${DOCS_PORT:-5183}:8080"
     environment:
       - NODE_ENV=production
 

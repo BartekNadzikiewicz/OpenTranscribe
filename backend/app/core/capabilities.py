@@ -195,8 +195,34 @@ def _parse_capability_overrides() -> dict[str, bool]:
     return overrides
 
 
+# --- Transkryptor70 (fork) -------------------------------------------------
+# Surfaces this deployment does not use, disabled in the IMAGE rather than only
+# in ``.env``.
+#
+# The 2026-08-17 security audit found the running deployment's ``.env`` carried
+# only the two chat keys, so features that had been *decided* off months earlier
+# — URL ingestion, per-user ASR credentials, per-user LLM credentials — were live
+# for all ~70 users, including an outbound channel that ships raw transcript text
+# to an external LLM. A line missing from a hand-edited file must not be the only
+# thing standing between users and that channel, so the baseline moves into the
+# image and ships with it.
+#
+# CAPABILITY_OVERRIDES still wins (it is applied after this), so re-enabling one
+# of these stays possible — but it becomes a deliberate, explicit act rather than
+# the default that nobody notices.
+DEPLOYMENT_DISABLED_CAPABILITIES: dict[str, bool] = {
+    "chat.rag": False,  # no LLM wired; chat would be a dead button
+    "chat.ungrounded": False,
+    "url_ingest": False,  # users must not make the server fetch arbitrary URLs
+    "asr.user_providers": False,  # one server-side ElevenLabs key for everyone
+    "llm.user_settings": False,  # closes user-configured outbound LLM entirely
+    "redaction.user": False,  # detector list is the entry point to the above
+}
+
+
 def _community_resolver(_request: Request | None) -> dict[str, bool]:
     caps = dict(COMMUNITY_CAPABILITIES)
+    caps.update(DEPLOYMENT_DISABLED_CAPABILITIES)
     caps.update(_parse_capability_overrides())
     return caps
 

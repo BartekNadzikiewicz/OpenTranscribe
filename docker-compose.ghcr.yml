@@ -6,43 +6,75 @@
 # wpisow start sciagal cudze obrazy (incydenty 2026-08-14, dysk ~15 GB).
 # Uzycie na serwerze: ./start-serwer.sh (ten plik OSTATNI na liscie -f).
 
+# LIMITY ZASOBOW (audyt bezpieczenstwa 2026-08-17): upstream nie ustawia zadnych
+# mem_limit/cpus, wiec jeden duzy plik audio mogl wyczerpac RAM hosta i OOM-killer
+# ubijal postgresa - awaria dla wszystkich 70 uzytkownikow. To sufity (nie
+# rezerwacje): sumuja sie ponad 16 GB, ale zaden pojedynczy proces nie zjada hosta.
+# Uzyte mem_limit/cpus (a nie deploy.resources) - dziala i w docker compose, i w
+# podman compose. Infra (postgres/opensearch/minio/redis) NIE limitowana: heap
+# OpenSearcha jest sterowany osobno i limit ponizej heapu = pewny OOM.
 services:
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-frontend:latest}
+    mem_limit: 256m
+    cpus: 0.5
 
   docs:
     image: ${DOCS_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-docs:latest}
+    mem_limit: 256m
+    cpus: 0.5
 
   backend:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    mem_limit: 2g
+    cpus: 2.0
 
   celery-cloud-asr-worker:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    # Sieciowy (czeka na ElevenLabs), ale trzyma 16 zadan naraz.
+    mem_limit: 2g
+    cpus: 2.0
 
   celery-cpu-worker:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    # Najciezszy: ffmpeg, waveform, konwersje - tu powstaje szczyt pamieci.
+    mem_limit: 3g
+    cpus: 3.0
 
   celery-nlp-worker:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    mem_limit: 1g
+    cpus: 1.0
 
   celery-download-worker:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    mem_limit: 1g
+    cpus: 1.0
 
   celery-beat:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    mem_limit: 512m
+    cpus: 0.5
 
   celery-redaction:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
     environment:
       - DEPLOYMENT_MODE=lite
+    mem_limit: 1g
+    cpus: 1.0
 
   celery-embedding-worker:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
     environment:
       - DEPLOYMENT_MODE=lite
+    # Laduje model embeddingow (sentence-transformers) - stad wiecej niz nlp.
+    mem_limit: 2g
+    cpus: 1.0
 
   flower:
     image: ${BACKEND_LITE_IMAGE:-ghcr.io/barteknadzikiewicz/opentranscribe-backend-lite:latest}
+    mem_limit: 512m
+    cpus: 0.5
 
   # Serwisy wylaczane replikami/profilami GPU - niektore compose i tak je
   # przetwarzaja; jawny obraz lite chroni przed pobraniem pelnego backendu.

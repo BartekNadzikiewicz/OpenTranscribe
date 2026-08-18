@@ -206,8 +206,15 @@ include_router_with_consistency(
 include_router_with_consistency(
     user_settings.router, prefix="/user-settings", tags=["user-settings"]
 )
+# Personal redaction preferences. Gated at the router, not just in the UI: the
+# detector list is user-settable here, and selecting the "llm" detector ships raw
+# transcript text to whatever LLM the user configured. Hiding the panel while the
+# endpoint stayed reachable made the switch presentation, not authorization.
 include_router_with_consistency(
-    redaction_settings.user_router, prefix="/user-settings", tags=["redaction-settings"]
+    redaction_settings.user_router,
+    prefix="/user-settings",
+    tags=["redaction-settings"],
+    capability="redaction.user",
 )
 # RAG chat over the user's transcripts. Router-level capability gate: the whole
 # surface 404s when a deployment disables chat (community default: enabled).

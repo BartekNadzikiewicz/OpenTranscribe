@@ -90,12 +90,26 @@ VALID_AWS_REGIONS = frozenset(
 
 
 def _validate_base_url_value(base_url: str | None) -> str | None:
-    """Validate that base_url uses http/https scheme (SSRF protection)."""
+    """Validate base_url: http/https scheme AND a public destination (SSRF).
+
+    The scheme check alone was not SSRF protection, despite the old docstring:
+    any authenticated user could point a provider config at ``http://opensearch:9200``
+    or ``http://169.254.169.254`` and have the server connect there, using
+    "Test connection" as an oracle for what is reachable from inside the network.
+    ``resolve_public_addresses`` is the same check the media-source path already
+    applies — private, loopback and link-local targets are refused here too.
+    """
     if not base_url:
         return base_url
     stripped = base_url.strip()
     if not re.match(r"^https?://", stripped, re.IGNORECASE):
         raise ValueError("base_url must begin with http:// or https://")
+
+    from app.utils.url_validation import is_safe_url
+
+    safe, reason = is_safe_url(stripped)
+    if not safe:
+        raise ValueError(f"base_url is not an allowed destination: {reason}")
     return stripped
 
 

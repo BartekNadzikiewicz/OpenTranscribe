@@ -184,6 +184,20 @@ def _is_valid_email(email: str) -> bool:
     return bool(re.match(pattern, email))
 
 
+def _auto_bind_mode(cfg: LdapConfig):
+    """Pick ldap3's auto_bind mode for this transport.
+
+    ``use_tls`` (StartTLS) used to be read from ``.env``/DB/admin UI and then never
+    reach the connection: the mode was ``AUTO_BIND_TLS_BEFORE_BIND if cfg.use_ssl``,
+    so StartTLS was requested only on connections that were *already* LDAPS and never
+    on the plain port 389 where it is the only thing that encrypts the bind. A
+    deployment following the UI (SSL off, StartTLS on) sent every user's password in
+    cleartext. ``Connection.start_tls()`` creates a default ``Tls()`` itself when the
+    server has none, so honouring the flag needs no extra TLS wiring here.
+    """
+    return AUTO_BIND_TLS_BEFORE_BIND if (cfg.use_ssl or cfg.use_tls) else True
+
+
 def _get_ldap_server(cfg: LdapConfig) -> Server:
     """Create and return an LDAP server object."""
     return Server(
@@ -213,7 +227,7 @@ def _bind_service_account(cfg: LdapConfig, server: Server) -> Connection | None:
             server,
             user=cfg.bind_dn,
             password=cfg.bind_password,
-            auto_bind=AUTO_BIND_TLS_BEFORE_BIND if cfg.use_ssl else True,
+            auto_bind=_auto_bind_mode(cfg),
         )
         logger.debug("LDAP service account bind successful")
         return conn
@@ -468,7 +482,7 @@ def _verify_user_credentials(
             server,
             user=user_dn,
             password=password,
-            auto_bind=AUTO_BIND_TLS_BEFORE_BIND if cfg.use_ssl else True,
+            auto_bind=_auto_bind_mode(cfg),
         )
         return conn
     except LDAPBindError:

@@ -485,11 +485,23 @@ def _validate_user_deletion(user: User, current_user: User) -> None:
             detail="Cannot delete your own account",
         )
 
-    # role is the source of truth: only a super_admin may delete a super_admin.
+    _assert_can_act_on_target(user, current_user, "delete")
+
+
+def _assert_can_act_on_target(user: User, current_user: User, action: str) -> None:
+    """Only a super_admin may act on a super_admin.
+
+    ``get_current_admin_user`` admits both ``admin`` and ``super_admin``, so every
+    privileged action on another account needs this check separately. Without it a
+    plain admin could lock, unlock or terminate the sessions of the deployment's only
+    super_admin — not an escalation, but a denial of service against the one account
+    that can change roles and auth configuration, and the one break-glass login when
+    the directory is unreachable.
+    """
     if user.role == ROLE_SUPER_ADMIN and current_user.role != ROLE_SUPER_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot delete a super_admin account",
+            detail=f"Cannot {action} a super_admin account",
         )
 
 
@@ -1293,6 +1305,7 @@ def admin_unlock_account(
     user = db.query(User).filter(User.uuid == user_uuid).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_can_act_on_target(user, current_user, "unlock")
 
     # Use the lockout manager to clear the failed-login lockout
     unlocked = lockout_unlock_account(str(user.email))
@@ -1329,6 +1342,7 @@ def admin_lock_account(
     user = db.query(User).filter(User.uuid == user_uuid).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_can_act_on_target(user, current_user, "lock")
 
     user.is_active = False  # type: ignore[assignment]
     # Locking an account that keeps a live refresh token is not a lock: token
@@ -1361,6 +1375,7 @@ def admin_terminate_user_sessions(
     user = db.query(User).filter(User.uuid == user_uuid).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_can_act_on_target(user, current_user, "terminate sessions for")
 
     # Revoke all refresh tokens
     now = datetime.now(UTC)
