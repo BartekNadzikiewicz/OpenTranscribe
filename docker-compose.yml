@@ -626,7 +626,11 @@ services:
       - DB_POOL_SIZE=${WORKER_DB_POOL_SIZE:-2}
       - DB_MAX_OVERFLOW=${WORKER_DB_MAX_OVERFLOW:-3}
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c 'import os,time; exit(0 if os.path.exists(\"/app/celerybeat-schedule\") and time.time()-os.path.getmtime(\"/app/celerybeat-schedule\")<300 else 1)'"]
+      # Glob, not a fixed name: the schedule is a `shelve` store, and the dbm
+      # backend available in the image decides the real filename —
+      # celerybeat-schedule, -schedule.db, or a .dat/.dir pair. A fixed-name
+      # check reports a working beat as permanently unhealthy.
+      test: ["CMD-SHELL", "python3 -c 'import glob,os,time; fs=glob.glob(\"/app/celerybeat-schedule*\"); exit(0 if fs and time.time()-max(os.path.getmtime(f) for f in fs)<300 else 1)'"]
       interval: 30s
       timeout: 10s
       retries: 3
